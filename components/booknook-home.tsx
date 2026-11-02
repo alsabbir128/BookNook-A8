@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { authClient } from '@/lib/auth-client'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay, EffectFade, Pagination } from 'swiper/modules'
 import 'swiper/css'
@@ -20,7 +22,7 @@ import {
   X,
 } from 'lucide-react'
 
-type Book = {
+export type Book = {
   title: string
   author: string
   category: string
@@ -32,7 +34,7 @@ type Book = {
 }
 
 const cover = (isbn: string) => `https://books.google.com/books/content?vid=ISBN:${isbn}&printsec=frontcover&img=1&zoom=1&source=gbs_api`
-const books: Book[] = [
+export const books: Book[] = [
   ['The Hobbit', 'J.R.R. Tolkien', 'Fantasy', '1937', '9780261102217', '#709477', 'Bilbo Baggins leaves his quiet home for a quest with thirteen dwarves and a dragon at the end.', 2],
   ['Pride and Prejudice', 'Jane Austen', 'Classic', '1813', '9780141439518', '#b87c9e', 'A sharp, tender comedy of manners about first impressions, family, and finding an equal heart.', 4],
   ['The Midnight Library', 'Matt Haig', 'Fiction', '2020', '9780525559474', '#d97e51', 'Between life and death there is a library. Every book offers Nora a chance to try another life.', 3],
@@ -73,30 +75,20 @@ const slides = [
   { eyebrow: 'Read together', title: 'Stories are better shared.', copy: 'Join a small, generous community of readers and keep your personal shelf moving.', image: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?auto=format&fit=crop&w=1800&q=85' },
 ]
 
-export default function BooknookHome() {
+export default function BooknookHome({ initialCopies = {} }: { initialCopies?: Record<string, number> }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [dark, setDark] = useState(false)
   const [query, setQuery] = useState('')
   const [activeBook, setActiveBook] = useState<Book | null>(null)
-  const [availableCopies, setAvailableCopies] = useState<Record<string, number>>(() => {
-    const defaults = Object.fromEntries(books.map((book) => [book.title, book.copies]))
-    if (typeof window === 'undefined') return defaults
-    try { return { ...defaults, ...JSON.parse(window.sessionStorage.getItem('booknook-copies') ?? '{}') } } catch { return defaults }
-  })
-  const filteredBooks = useMemo(() => books.filter((book) => `${book.title} ${book.author} ${book.category}`.toLowerCase().includes(query.toLowerCase())), [query])
-  const borrowBook = (book: Book) => {
-    if ((availableCopies[book.title] ?? 0) < 1) return
-    const today = new Date()
-    const returnDate = new Date(today)
-    returnDate.setDate(today.getDate() + 14)
-    const borrowed = { title: book.title, author: book.author, image: book.image, borrowDate: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), returnDate: returnDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
-    const currentBorrows = typeof window === 'undefined' ? [] : JSON.parse(window.sessionStorage.getItem('booknook-borrows') ?? '[]')
-    window.sessionStorage.setItem('booknook-borrows', JSON.stringify([...currentBorrows, borrowed]))
-    const nextCopies = { ...availableCopies, [book.title]: availableCopies[book.title] - 1 }
-    window.sessionStorage.setItem('booknook-copies', JSON.stringify(nextCopies))
-    setAvailableCopies(nextCopies)
-    setActiveBook(null)
+  const router = useRouter()
+  const { data: session, isPending: sessionPending } = authClient.useSession()
+  const [availableCopies, setAvailableCopies] = useState<Record<string, number>>(() => ({ ...Object.fromEntries(books.map((book) => [book.title, book.copies])), ...initialCopies }))
+  const filteredBooks = useMemo(() => books.slice(0, 12).filter((book) => `${book.title} ${book.author} ${book.category}`.toLowerCase().includes(query.toLowerCase())), [query])
+  const borrowBook = async (book: Book) => {
+    if (!session) { router.push('/sign-in'); return }
+    const response = await fetch('/api/borrows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: book.title, author: book.author, image: book.image }) })
+    if (response.ok) { setAvailableCopies((copies) => ({ ...copies, [book.title]: Math.max(0, (copies[book.title] ?? book.copies) - 1) })); setActiveBook(null); router.refresh() }
   }
 
   return (
@@ -105,16 +97,16 @@ export default function BooknookHome() {
         <a className="brand" href="#top" aria-label="BookNook home"><span className="brand-mark"><Library size={18} strokeWidth={2.4} /></span><span>Book<span className="brand-accent">Nook</span></span></a>
         <nav className={`main-nav ${menuOpen ? 'nav-open' : ''}`}>
           <a className="active" href="#top" onClick={() => setMenuOpen(false)}>Home</a>
-          <a href="#books" onClick={() => setMenuOpen(false)}>All books</a>
+          <a href="/all-books" onClick={() => setMenuOpen(false)}>All books</a>
           <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
-          <a href="/borrows" onClick={() => setMenuOpen(false)}>My borrows</a>
+          {session && <a href="/borrows" onClick={() => setMenuOpen(false)}>My borrows</a>}
         </nav>
         <div className="header-actions">
           <button className="icon-button" aria-label="Toggle theme" onClick={() => setDark(!dark)}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <div className="profile-wrap">
-            <button className="profile-button" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}><span className="avatar">AM</span><span className="profile-name">Alex Morgan</span><ChevronDown size={15} /></button>
-            {profileOpen && <div className="profile-menu"><strong>Alex Morgan</strong><span>Reader since 2024</span><hr /><a href="#my-books">My shelf</a><a href="/borrows">Borrowed books</a><button>Log out</button></div>}
-          </div>
+          {!sessionPending && (session ? <div className="profile-wrap">
+            <button className="profile-button" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}><span className="avatar">{session.user.name.slice(0, 2).toUpperCase()}</span><span className="profile-name">{session.user.name}</span><ChevronDown size={15} /></button>
+            {profileOpen && <div className="profile-menu"><strong>{session.user.name}</strong><span>{session.user.email}</span><hr /><a href="#my-books">My shelf</a><a href="/borrows">Borrowed books</a><button onClick={async () => { await authClient.signOut(); router.refresh() }}>Log out</button></div>}
+          </div> : <div className="guest-actions"><a href="/sign-in">Log in</a><a className="header-signup" href="/sign-up">Sign up</a></div>)}
           <button className="menu-button" aria-label="Open menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
         </div>
       </header>
@@ -127,8 +119,8 @@ export default function BooknookHome() {
         </section>
 
         <section className="section books-section" id="books">
-          <div className="section-heading"><div><div className="eyebrow">Curated for you</div><h2>New arrivals</h2></div><a className="text-link" href="#books">See all books <ArrowRight size={16} /></a></div>
-          <div className="book-grid">{filteredBooks.map((book) => { const copies = availableCopies[book.title] ?? 0; return <article className="book-card" key={book.title}><button className="book-cover" onClick={() => setActiveBook(book)} aria-label={`View ${book.title}`}><img src={book.image} alt={`${book.title} book cover`} /><span className="cover-tag" style={{ backgroundColor: book.accent }}>{book.category}</span></button><div className="book-info"><div><h3>{book.title}</h3><p>{book.author}</p><span className={`availability ${copies === 0 ? 'sold-out' : ''}`}>{copies === 0 ? 'All copies borrowed' : `${copies} ${copies === 1 ? 'copy' : 'copies'} available`}</span></div><button className="round-arrow" onClick={() => setActiveBook(book)} aria-label={`View details for ${book.title}`}><ArrowRight size={17} /></button></div></article>})}</div>
+          <div className="section-heading"><div><div className="eyebrow">Curated for you</div><h2>New arrivals</h2></div><a className="text-link" href="/all-books">See all books <ArrowRight size={16} /></a></div>
+          <div className="book-grid">{filteredBooks.map((book) => { const copies = availableCopies[book.title] ?? 0; return <article className="book-card" key={book.title}><button className="book-cover" onClick={() => session ? setActiveBook(book) : router.push('/sign-in')} aria-label={session ? `View ${book.title}` : `Log in to view ${book.title}`}><img src={book.image} alt={`${book.title} book cover`} /><span className="cover-tag" style={{ backgroundColor: book.accent }}>{book.category}</span></button><div className="book-info"><div><h3>{book.title}</h3><p>{book.author}</p><span className={`availability ${copies === 0 ? 'sold-out' : ''}`}>{copies === 0 ? 'All copies borrowed' : `${copies} ${copies === 1 ? 'copy' : 'copies'} available`}</span></div><button className="round-arrow" onClick={() => session ? setActiveBook(book) : router.push('/sign-in')} aria-label={session ? `View details for ${book.title}` : `Log in to view ${book.title}`}><ArrowRight size={17} /></button></div></article>})}</div>
           <div className="search-row"><div className="search-box"><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title, author, or category" aria-label="Search books" />{query && <button onClick={() => setQuery('')} aria-label="Clear search"><X size={16} /></button>}</div><span className="result-count">{filteredBooks.length} books on the shelf</span></div>
         </section>
 
@@ -136,10 +128,10 @@ export default function BooknookHome() {
 
         <section className="section how-section" id="how-it-works"><div className="section-heading"><div><div className="eyebrow">Simple by design</div><h2>Find. Borrow. Belong.</h2></div><p className="heading-copy">A library should feel like an invitation, not an errand.</p></div><div className="steps"><div className="step"><span className="step-number">01</span><BookOpen size={25} /><h3>Find your next read</h3><p>Browse our hand-picked shelves and follow your curiosity wherever it leads.</p></div><div className="step"><span className="step-number">02</span><Clock3 size={25} /><h3>Keep it for 14 days</h3><p>Borrow with ease and take your time. No pressure, just a little more room to read.</p></div><div className="step"><span className="step-number">03</span><Sparkles size={25} /><h3>Pass it forward</h3><p>Return your book when you’re ready so another reader can discover its magic.</p></div></div></section>
 
-        <section className="shelf-section" id="my-books"><div className="shelf-copy"><div className="eyebrow light">Your reading life</div><h2>There’s always<br /><em>another chapter.</em></h2><p>Keep track of what you’re reading, save books for later, and make your shelf feel like home.</p><a href="#books" className="secondary-button">Explore the collection <ArrowRight size={16} /></a></div><div className="borrowed-stack" aria-label="Borrowed books"><div className="borrowed-heading"><span>Currently borrowed</span><strong>3 books</strong></div><div className="shelf-stack"><div className="shelf-book book-one" title="The Midnight Library">READ<br />WIDELY</div><div className="shelf-book book-two" title="A Field Guide to Getting Lost">THE<br />WAY<br />HOME</div><div className="shelf-book book-three" title="Braiding Sweetgrass">SMALL<br />WONDERS</div><div className="shelf-book book-four" title="The Book of Delights">FIELD<br />NOTES</div></div><div className="borrowed-meta"><span>Due back in 8 days</span><a href="#books">Manage shelf <ArrowRight size={13} /></a></div></div></section>
+        {session && <section className="shelf-section" id="my-books"><div className="shelf-copy"><div className="eyebrow light">Your reading life</div><h2>There’s always<br /><em>another chapter.</em></h2><p>Keep track of what you’re reading, save books for later, and make your shelf feel like home.</p><a href="#books" className="secondary-button">Explore the collection <ArrowRight size={16} /></a></div><div className="borrowed-stack" aria-label="Borrowed books"><div className="borrowed-heading"><span>Currently borrowed</span><strong>3 books</strong></div><div className="shelf-stack"><div className="shelf-book book-one" title="The Midnight Library">READ<br />WIDELY</div><div className="shelf-book book-two" title="A Field Guide to Getting Lost">THE<br />WAY<br />HOME</div><div className="shelf-book book-three" title="Braiding Sweetgrass">SMALL<br />WONDERS</div><div className="shelf-book book-four" title="The Book of Delights">FIELD<br />NOTES</div></div><div className="borrowed-meta"><span>Due back in 8 days</span><a href="#books">Manage shelf <ArrowRight size={13} /></a></div></div></section>}
       </main>
 
-      <footer className="site-footer"><div className="footer-top"><div><a className="brand footer-brand" href="#top"><span className="brand-mark"><Library size={18} /></span>Book<span className="brand-accent">Nook</span></a><p className="footer-blurb">A small online library for<br />curious, generous readers.</p></div><div className="footer-column"><span>Explore</span><a href="#books">All books</a><a href="#how-it-works">How it works</a><a href="/borrows">My borrows</a></div><div className="footer-column"><span>Say hello</span><a href="mailto:hello@booknook.club">hello@booknook.club</a><p>Portland, Oregon</p></div><div className="footer-social"><span>Follow along</span><div><a href="#top" aria-label="Instagram">◎</a><a href="#top" aria-label="Facebook">f</a><a href="#top" aria-label="X">𝕏</a></div></div></div><div className="footer-bottom"><span>© 2024 BookNook Library</span><span>Made for slow mornings & good stories.</span></div></footer>
+      <footer className="site-footer"><div className="footer-contact-banner"><div><div className="eyebrow">Contact us</div><h2>Keep the conversation<br /><em>open.</em></h2></div><p>Have a book recommendation, a question, or just want to say hello? We&apos;d love to hear from you.</p></div><div className="footer-top"><div><a className="brand footer-brand" href="#top"><span className="brand-mark"><Library size={18} /></span>Book<span className="brand-accent">Nook</span></a><p className="footer-blurb">A small online library for<br />curious, generous readers.</p></div><div className="footer-column"><span>Explore</span><a href="/all-books">All books</a><a href="#how-it-works">How it works</a>{session && <a href="/borrows">My borrows</a>}</div><div className="footer-column"><span>Say hello</span><a className="footer-email" href="mailto:abdullahals128@gmail.com">abdullahals128@gmail.com</a><p>Mohakhali, Dhaka</p></div><div className="footer-social"><span>Follow along</span><div className="footer-social-links"><a className="social-link linkedin" href="https://www.linkedin.com/in/abdullah-al-sabbir-" target="_blank" rel="noreferrer" aria-label="LinkedIn"><strong>in</strong><small>LinkedIn</small></a><a className="social-link instagram" href="https://www.instagram.com/al_sabbir23" target="_blank" rel="noreferrer" aria-label="Instagram"><strong>◎</strong><small>Instagram</small></a></div></div></div><div className="footer-bottom"><span>© 2024 BookNook Library</span><span>Made for slow mornings & good stories.</span></div></footer>
 
       {activeBook && <div className="modal-backdrop" role="presentation" onClick={() => setActiveBook(null)}><div className="book-modal" role="dialog" aria-modal="true" aria-label={`${activeBook.title} details`} onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setActiveBook(null)} aria-label="Close"><X size={20} /></button><img src={activeBook.image} alt={`${activeBook.title} cover`} /><div className="modal-copy"><div className="eyebrow">{activeBook.category} · {activeBook.year}</div><h2>{activeBook.title}</h2><p className="modal-author">by {activeBook.author}</p><p>{activeBook.description}</p><div className="modal-availability">{(availableCopies[activeBook.title] ?? 0) > 0 ? `${availableCopies[activeBook.title]} ${availableCopies[activeBook.title] === 1 ? 'copy' : 'copies'} available` : 'All copies are currently borrowed'}</div><button className="primary-button" disabled={(availableCopies[activeBook.title] ?? 0) === 0} onClick={() => borrowBook(activeBook)}>{(availableCopies[activeBook.title] ?? 0) > 0 ? 'Borrow this book' : 'Unavailable'} <ArrowRight size={16} /></button></div></div></div>}
     </div>
