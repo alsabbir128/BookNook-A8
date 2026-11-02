@@ -1,5 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import SiteNavigation from '@/components/site-navigation'
 import './globals.css'
 import './auth.css'
 import './catalog.css'
@@ -11,11 +12,11 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: '#f5f1ea',
+  colorScheme: 'dark light',
+  themeColor: '#101a17',
   userScalable: true,
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" data-scroll-behavior="smooth"><body className="antialiased">{children}{process.env.NODE_ENV === 'production' && <Analytics />}</body></html>
+  return <html lang="en" data-theme="dark" data-scroll-behavior="smooth"><body className="antialiased"><SiteNavigation />{children}{process.env.NODE_ENV === 'production' && <Analytics />}</body></html>
 }

@@ -1,4 +1,4 @@
-import { integer, date, serial, text, timestamp, boolean, pgTable } from 'drizzle-orm/pg-core'
+import { integer, date, serial, text, timestamp, boolean, pgTable, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(), name: text('name').notNull(), email: text('email').notNull().unique(), emailVerified: boolean('emailVerified').notNull().default(false), image: text('image'), createdAt: timestamp('createdAt').notNull().defaultNow(), updatedAt: timestamp('updatedAt').notNull().defaultNow(),
@@ -14,5 +14,7 @@ export const verification = pgTable('verification', {
 })
 export const borrow = pgTable('borrow', {
   id: serial('id').primaryKey(), userId: text('userId').notNull(), title: text('title').notNull(), author: text('author').notNull(), image: text('image').notNull(), borrowDate: date('borrowDate').notNull(), returnDate: date('returnDate').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
-})
+}, (table) => ({
+  userTitleUnique: uniqueIndex('borrow_user_title_unique').on(table.userId, table.title),
+}))
 export const bookInventory = pgTable('book_inventory', { title: text('title').primaryKey(), copies: integer('copies').notNull() })
