@@ -17,3 +17,15 @@
 .shelf-empty { align-items: center; border: 1px dashed var(--line); border-radius: 6px; color: var(--muted); display: flex; font-size: 11px; justify-content: center; min-height: 100px; padding: 12px; text-align: center; width: 100%; }
 @media (max-width: 760px) { .catalog-book-info { gap: 11px; }.catalog-borrow-button { font-size: 10px; min-height: 36px; } }
 
+.catalog-page { background-color: var(--paper); background-image: radial-gradient(ellipse at 50% -15%, var(--glow), transparent 42%); }
+.catalog-intro { background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--orange) 10%, transparent), transparent 78%), var(--surface); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--orange) 16%, transparent); }
+.category-bar button:hover, .category-bar button.active { background: var(--orange); border-color: var(--orange); color: var(--accent-ink); box-shadow: 0 6px 18px var(--glow); }
+.catalog-search:focus-within { border-color: var(--orange); box-shadow: 0 8px 18px -16px var(--orange); }
+.catalog-page .book-cover { box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 0 20px color-mix(in srgb, var(--orange) 14%, transparent); }
+.catalog-page .book-cover:hover { box-shadow: 0 20px 42px rgb(0 0 0 / 40%), 0 0 30px color-mix(in srgb, var(--orange) 28%, transparent); }
+.catalog-borrow-button { background: var(--orange); border-color: var(--orange); color: var(--accent-ink); box-shadow: 0 8px 22px color-mix(in srgb, var(--orange) 20%, transparent); }
+.catalog-borrow-button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-ink); box-shadow: 0 0 28px var(--glow); }
+.catalog-borrow-button:disabled { background: var(--panel); border-color: var(--line); color: var(--muted); }
+.shelf-empty { background: color-mix(in srgb, var(--panel) 88%, transparent); box-shadow: inset 0 0 24px color-mix(in srgb, var(--orange) 8%, transparent); }
+
+

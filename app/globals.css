@@ -140,3 +140,80 @@ html, body { background: var(--paper); color: var(--ink); }
   .site-header .header-signup { padding: 8px 10px; }
 }
 
+:root {
+  color-scheme: dark;
+  --ink: #f1f0ff;
+  --muted: #a5a7c4;
+  --paper: #0b0d18;
+  --surface: #14182a;
+  --panel: #1b2036;
+  --cream: #232943;
+  --line: #353c5f;
+  --orange: #a898ff;
+  --accent-hover: #c2b7ff;
+  --accent-ink: #17142d;
+  --success: #9fbaff;
+  --sage: #aaa2ff;
+  --glow: rgb(131 111 255 / 24%);
+  --nav-bg: rgb(11 13 24 / 84%);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --ink: #282541;
+  --muted: #75748d;
+  --paper: #f3f2fb;
+  --surface: #e8e7f3;
+  --panel: #fcfbff;
+  --cream: #e3e2f0;
+  --line: #d2d1e4;
+  --orange: #6654d7;
+  --accent-hover: #5846c7;
+  --accent-ink: #ffffff;
+  --success: #536ba9;
+  --sage: #786bcd;
+  --glow: rgb(100 84 216 / 16%);
+  --nav-bg: rgb(243 242 251 / 88%);
+}
+
+html, body { background: var(--paper); color: var(--ink); }
+.booknook { background-color: var(--paper); background-image: radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--orange) 13%, transparent), transparent 38%); }
+.site-header { box-shadow: 0 8px 28px rgb(0 0 0 / 20%), 0 0 26px color-mix(in srgb, var(--orange) 10%, transparent); }
+.hero-swiper { box-shadow: 0 24px 60px rgb(0 0 0 / 36%), 0 0 38px color-mix(in srgb, var(--orange) 20%, transparent); }
+.hero-slide { box-shadow: inset 0 0 120px color-mix(in srgb, var(--orange) 14%, transparent), inset 0 0 60px rgb(85 152 255 / 8%); }
+.eyebrow.light { color: var(--accent-hover); }
+.primary-button { background: var(--orange); color: var(--accent-ink); box-shadow: 0 12px 28px var(--glow); }
+.primary-button:hover { box-shadow: 0 0 30px var(--glow); }
+.book-cover { background: var(--panel); border-radius: 8px; box-shadow: 0 14px 34px rgb(0 0 0 / 30%), 0 0 20px color-mix(in srgb, var(--orange) 14%, transparent); }
+.book-cover:hover { box-shadow: 0 20px 42px rgb(0 0 0 / 40%), 0 0 30px color-mix(in srgb, var(--orange) 28%, transparent); }
+.round-arrow:hover { color: var(--accent-ink); box-shadow: 0 0 18px var(--glow); }
+.availability, .modal-availability { color: var(--success); text-shadow: 0 0 14px color-mix(in srgb, var(--success) 24%, transparent); }
+.step-number { color: var(--muted); }
+.step svg { filter: drop-shadow(0 0 10px var(--glow)); }
+.quote-section { background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--orange) 10%, var(--surface)), var(--surface) 62%); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--orange) 18%, transparent); }
+.shelf-section { background: radial-gradient(ellipse at 78% 28%, color-mix(in srgb, var(--orange) 20%, transparent), transparent 34%), linear-gradient(125deg, #0c1020, #191d37 58%, #101426); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--orange) 22%, transparent), inset 0 -1px 0 rgb(133 115 255 / 18%); }
+.shelf-section p, .borrowed-heading, .borrowed-meta { color: #c1c4e0; }
+.shelf-section h2 em, .borrowed-heading strong, .borrowed-meta a { color: var(--accent-hover); }
+.borrowed-heading, .borrowed-meta { border-color: rgb(173 164 255 / 20%); }
+.secondary-button { background: var(--orange); border: 1px solid var(--orange); color: var(--accent-ink); box-shadow: 0 10px 28px var(--glow); }
+.secondary-button:hover { box-shadow: 0 0 30px var(--glow); }
+.book-one { background: #514a85; }
+.book-two { background: #6b5da4; }
+.book-three { background: #546ba8; }
+.book-four { background: #463e78; }
+.site-footer { background: linear-gradient(180deg, var(--surface), var(--paper)); }
+.modal-backdrop { backdrop-filter: blur(8px); background: rgb(6 8 19 / 82%); }
+.book-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 28px 80px rgb(0 0 0 / 50%), 0 0 44px var(--glow); }
+.modal-close:hover { color: var(--orange); }
+.borrows-page { background-color: var(--paper); background-image: radial-gradient(ellipse at 78% 0%, color-mix(in srgb, var(--orange) 12%, transparent), transparent 38%); }
+.borrows-header .back-link { color: var(--muted); }
+.borrows-header .back-link:hover { color: var(--orange); }
+.borrows-table-wrap { box-shadow: 0 18px 48px rgb(0 0 0 / 28%), 0 0 25px color-mix(in srgb, var(--orange) 10%, transparent); }
+.borrow-cover.hobbit { background: linear-gradient(160deg, #5f5bab, #252c58); }
+.empty-borrows { color: var(--muted); }
+.empty-borrows strong { color: var(--ink); }
+.empty-borrows a { color: var(--orange); }
+.booknook-dark { --ink: #f1f0ff; --muted: #a5a7c4; --paper: #0b0d18; --surface: #14182a; --panel: #1b2036; --cream: #232943; --line: #353c5f; --orange: #a898ff; --accent-hover: #c2b7ff; --accent-ink: #17142d; --success: #9fbaff; --glow: rgb(131 111 255 / 24%); background: radial-gradient(ellipse at 85% 0%, rgb(131 111 255 / 15%), transparent 36%), var(--paper); }
+.booknook-dark .site-header, .booknook-dark .site-footer, .booknook-dark .quote-section, .booknook-dark .profile-menu { background-color: var(--surface); }
+
+

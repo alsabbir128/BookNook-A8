@@ -80,7 +80,7 @@ export default function BooknookHome({ initialCopies = {} }: { initialCopies?: R
       <main id="top">
         <section className="hero-wrap">
           <Swiper modules={[Autoplay, EffectFade, Pagination]} effect="fade" autoplay={{ delay: 5500, disableOnInteraction: false }} pagination={{ clickable: true }} loop className="hero-swiper">
-            {slides.map((slide) => <SwiperSlide key={slide.title}><div className="hero-slide" style={{ backgroundImage: `linear-gradient(90deg, rgba(24,33,31,.9) 0%, rgba(24,33,31,.66) 42%, rgba(24,33,31,.08) 100%), url(${slide.image})` }}><div className="hero-content"><div className="eyebrow light"><Sparkles size={14} /> {slide.eyebrow}</div><h1>{slide.title}</h1><p>{slide.copy}</p><a href="#books" className="primary-button">Browse books <ArrowRight size={16} /></a></div></div></SwiperSlide>)}
+            {slides.map((slide) => <SwiperSlide key={slide.title}><div className="hero-slide" style={{ backgroundImage: `linear-gradient(90deg, rgba(9,11,22,.94) 0%, rgba(14,17,34,.76) 42%, rgba(13,17,32,.14) 100%), radial-gradient(circle at 22% 18%, rgba(133,116,255,.25), transparent 48%), url(${slide.image})` }}><div className="hero-content"><div className="eyebrow light"><Sparkles size={14} /> {slide.eyebrow}</div><h1>{slide.title}</h1><p>{slide.copy}</p><a href="#books" className="primary-button">Browse books <ArrowRight size={16} /></a></div></div></SwiperSlide>)}
           </Swiper>
         </section>
 
