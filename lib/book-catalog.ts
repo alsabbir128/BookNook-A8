@@ -14,7 +14,14 @@ type BookEntry = readonly [title: string, author: string, category: string, year
 
 const openLibraryCover = (isbn: string) => `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`
 const googleBooksCover = (isbn: string) => `https://books.google.com/books/content?vid=ISBN:${isbn}&printsec=frontcover&img=1&zoom=3&source=gbs_api`
-const openLibraryMissingIsbns = new Set(['9780261102217', '9781616208898', '9781250776673', '9780241373590', '9780525555217', '9780062459368'])
+const openLibraryMissingIsbns = new Set(['9780261102217'])
+const generatedCoverByIsbn: Record<string, string | undefined> = {
+  '9781616208898': '/images/covers/book-of-delights.png',
+  '9781250776673': '/images/covers/sea-of-tranquility.png',
+  '9780241373590': '/images/covers/art-of-rest.png',
+  '9780525555217': '/images/covers/anthropocene-reviewed.png',
+  '9780062459368': '/images/covers/ocean-at-the-end-of-the-lane.png',
+}
 
 const bookEntries: BookEntry[] = [
   ["The Hobbit", "J.R.R. Tolkien", "Fantasy", "1937", "9780261102217", "#6856ba", "Bilbo Baggins leaves his quiet home for a quest with thirteen dwarves and a dragon at the end.", 2],
@@ -51,17 +58,22 @@ const bookEntries: BookEntry[] = [
   ["Howl’s Moving Castle", "Diana Wynne Jones", "Fantasy", "1986", "9780061478789", "#cb805b", "A young hat-maker is cursed and finds an unlikely ally in a moving castle.", 4],
 ]
 
-export const books: Book[] = bookEntries.map(([title, author, category, year, isbn, accent, description, copies]) => ({
-  title,
-  author,
-  category,
-  year,
-  accent,
-  description,
-  copies,
-  image: openLibraryMissingIsbns.has(isbn) ? googleBooksCover(isbn) : openLibraryCover(isbn),
-  fallbackImage: openLibraryMissingIsbns.has(isbn) ? openLibraryCover(isbn) : googleBooksCover(isbn),
-}))
+export const books: Book[] = bookEntries.map(([title, author, category, year, isbn, accent, description, copies]) => {
+  const generatedCover = generatedCoverByIsbn[isbn]
+  const openLibraryIsMissing = openLibraryMissingIsbns.has(isbn)
+
+  return {
+    title,
+    author,
+    category,
+    year,
+    accent,
+    description,
+    copies,
+    image: generatedCover ?? (openLibraryIsMissing ? googleBooksCover(isbn) : openLibraryCover(isbn)),
+    fallbackImage: generatedCover ?? (openLibraryIsMissing ? openLibraryCover(isbn) : googleBooksCover(isbn)),
+  }
+})
 
 export function getBookByTitle(title: string) {
   return books.find((book) => book.title === title)
