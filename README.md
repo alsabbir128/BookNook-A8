@@ -2,7 +2,7 @@
 
 A small online library for curious, generous readers. BookNook lets visitors discover books, while registered readers can add titles, borrow copies, and manage returns from one calm, editorial-style interface.
 
-**Live site:** [[https://alsabbir.lovable.app/](https://alsabbir.lovable.app/)](https://booklog-ai.vercel.app/)
+**Live site:** https://booklog-ai.vercel.app/
 
 ## Features
 
