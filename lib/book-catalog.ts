@@ -1,4 +1,5 @@
 export type Book = {
+  id?: number
   title: string
   author: string
   category: string
@@ -8,7 +9,12 @@ export type Book = {
   accent: string
   year: string
   copies: number
+  addedByName: string
+  addedByEmail: string
+  addedAt?: string
 }
+
+export const LEGACY_BOOK_OWNER = { name: 'Abdullah Al Sabbir', email: 'abdullahals128@gmail.com' } as const
 
 type BookEntry = readonly [title: string, author: string, category: string, year: string, isbn: string, accent: string, description: string, copies: number]
 
@@ -72,9 +78,12 @@ export const books: Book[] = bookEntries.map(([title, author, category, year, is
     copies,
     image: generatedCover ?? (openLibraryIsMissing ? googleBooksCover(isbn) : openLibraryCover(isbn)),
     fallbackImage: generatedCover ?? (openLibraryIsMissing ? openLibraryCover(isbn) : googleBooksCover(isbn)),
+    addedByName: LEGACY_BOOK_OWNER.name,
+    addedByEmail: LEGACY_BOOK_OWNER.email,
   }
 })
 
 export function getBookByTitle(title: string) {
-  return books.find((book) => book.title === title)
+  const normalizedTitle = title.trim().toLowerCase()
+  return books.find((book) => book.title.toLowerCase() === normalizedTitle)
 }

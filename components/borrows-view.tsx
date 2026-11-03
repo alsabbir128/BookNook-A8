@@ -6,11 +6,12 @@ import Link from 'next/link'
 import { BookOpen, Check, RotateCcw } from 'lucide-react'
 import { books } from '@/lib/book-catalog'
 import BookCoverImage from '@/components/book-cover-image'
+import { jwtFetch } from '@/lib/jwt-client'
 
 type BorrowedBook = { id: number; title: string; author: string; image: string; borrowDate: string; returnDate: string }
 
 async function fetchBorrowedBooks(url: string): Promise<BorrowedBook[]> {
-  const response = await fetch(url)
+  const response = await jwtFetch(url)
   if (!response.ok) throw new Error('Could not load your borrowed books')
   return response.json()
 }
@@ -25,7 +26,7 @@ export default function BorrowsView({ initialBooks }: { initialBooks: BorrowedBo
     setReturningId(id)
     setReturnError(null)
     try {
-      const response = await fetch('/api/borrows', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      const response = await jwtFetch('/api/borrows', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
       if (!response.ok) {
         const result = await response.json().catch(() => ({})) as { error?: string }
         setReturnError(result.error ?? 'Could not return this book. Please try again.')

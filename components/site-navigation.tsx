@@ -3,16 +3,17 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { ArrowRight, ChevronDown, Library, Menu, Moon, Sun, UserRound, X } from 'lucide-react'
+import { ChevronDown, Library, Menu, Moon, Sun, UserRound, X } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
+import { clearJwtAccessToken, useJwtSession } from '@/lib/jwt-client'
 
 export default function SiteNavigation() {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session, isPending } = authClient.useSession()
+  const { data: session, isPending, mutate: mutateJwtSession } = useJwtSession()
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [isDark, setIsDark] = useState(true)
+  const [isDark, setIsDark] = useState(false)
   const [failedImage, setFailedImage] = useState<string | null>(null)
 
   const userName = session?.user.name || session?.user.email || 'Reader'
@@ -30,6 +31,18 @@ export default function SiteNavigation() {
     document.documentElement.dataset.theme = nextTheme
   }
 
+  async function logout() {
+    clearJwtAccessToken()
+    await Promise.allSettled([
+      fetch('/api/auth/access-token', { method: 'DELETE', cache: 'no-store' }),
+      authClient.signOut(),
+    ])
+    await mutateJwtSession(null, { revalidate: false })
+    closeNavigation()
+    router.replace('/')
+    router.refresh()
+  }
+
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -40,9 +53,12 @@ export default function SiteNavigation() {
 
         <nav className={`main-nav ${menuOpen ? 'nav-open' : ''}`} id="primary-navigation" aria-label="Primary navigation">
           <Link className={pathname === '/' ? 'active' : ''} aria-current={pathname === '/' ? 'page' : undefined} href="/" onClick={closeNavigation}>Home</Link>
-          <Link className={pathname === '/all-books' ? 'active' : ''} aria-current={pathname === '/all-books' ? 'page' : undefined} href="/all-books" onClick={closeNavigation}>All books</Link>
-          <Link href="/#how-it-works" onClick={closeNavigation}>How it works</Link>
-          {session && <Link className={pathname === '/borrows' ? 'active' : ''} aria-current={pathname === '/borrows' ? 'page' : undefined} href="/borrows" onClick={closeNavigation}>My borrows</Link>}
+          <Link className={pathname === '/all-books' ? 'active' : ''} aria-current={pathname === '/all-books' ? 'page' : undefined} href="/all-books" onClick={closeNavigation}>All Books</Link>
+          {session && <>
+            <Link className={pathname === '/add-book' ? 'active' : ''} aria-current={pathname === '/add-book' ? 'page' : undefined} href="/add-book" onClick={closeNavigation}>Add Book</Link>
+            <Link className={pathname === '/my-books' ? 'active' : ''} aria-current={pathname === '/my-books' ? 'page' : undefined} href="/my-books" onClick={closeNavigation}>My Books</Link>
+            <Link className={pathname === '/borrows' ? 'active' : ''} aria-current={pathname === '/borrows' ? 'page' : undefined} href="/borrows" onClick={closeNavigation}>My Borrows</Link>
+          </>}
         </nav>
 
         <div className="header-actions">
@@ -51,8 +67,8 @@ export default function SiteNavigation() {
           </button>
 
           {isPending ? <span className="nav-session-placeholder" aria-hidden="true" /> : session ? (
-            <div className="profile-wrap">
-              <button className="profile-button" type="button" aria-label={`${userName} account menu`} aria-expanded={profileOpen} onClick={() => setProfileOpen(!profileOpen)}>
+            <div className="profile-wrap" onKeyDown={(event) => { if (event.key === 'Escape') setProfileOpen(false) }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setProfileOpen(false) }}>
+              <button className="profile-button" type="button" aria-label={`${userName} account menu`} aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => setProfileOpen(!profileOpen)}>
                 <span className="avatar" aria-hidden="true">
                   {showImage ? <img className="avatar-image" src={imageUrl} alt="" referrerPolicy="no-referrer" onError={() => setFailedImage(imageUrl)} /> : <UserRound className="avatar-fallback" size={16} />}
                 </span>
@@ -60,19 +76,19 @@ export default function SiteNavigation() {
                 <ChevronDown size={15} />
               </button>
               {profileOpen && (
-                <div className="profile-menu" aria-label="Account menu">
+                <div className="profile-menu" role="menu" aria-label="Account menu">
                   <strong>{userName}</strong>
                   {session.user.email && <span>{session.user.email}</span>}
                   <div className="profile-menu-divider" />
-                  <Link href="/borrows" onClick={closeNavigation}>Borrowed books <ArrowRight size={14} /></Link>
-                  <button type="button" onClick={async () => { await authClient.signOut(); closeNavigation(); router.refresh() }}>Log out</button>
+                  <Link role="menuitem" href="/profile" onClick={closeNavigation}>My Profile</Link>
+                  <button role="menuitem" type="button" onClick={logout}>Logout</button>
                 </div>
               )}
             </div>
           ) : (
             <div className="guest-actions">
-              <Link href="/sign-in">Log in</Link>
-              <Link className="header-signup" href="/sign-up">Sign up</Link>
+              <Link href="/sign-in">Login</Link>
+              <Link className="header-signup" href="/sign-up">Register</Link>
             </div>
           )}
 

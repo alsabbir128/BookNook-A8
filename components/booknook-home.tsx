@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { authClient } from '@/lib/auth-client'
+import { jwtFetch, useJwtSession } from '@/lib/jwt-client'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay, EffectFade, Pagination } from 'swiper/modules'
 import 'swiper/css'
@@ -18,7 +18,7 @@ type BorrowedBook = { id: number; title: string; author: string; image: string; 
 type BorrowApiResult = { error?: string; code?: string; borrow?: BorrowedBook; copiesRemaining?: number }
 
 async function fetchBorrowedBooks(url: string): Promise<BorrowedBook[]> {
-  const response = await fetch(url)
+  const response = await jwtFetch(url)
   if (!response.ok) throw new Error('Could not load your borrowed books')
   return response.json()
 }
@@ -29,17 +29,17 @@ const slides = [
   { eyebrow: 'Read together', title: 'Stories are better shared.', copy: 'Join a small, generous community of readers and keep your personal shelf moving.', image: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?auto=format&fit=crop&w=1800&q=85' },
 ]
 
-export default function BooknookHome({ initialCopies = {} }: { initialCopies?: Record<string, number> }) {
+export default function BooknookHome({ catalogBooks = books, initialCopies = {} }: { catalogBooks?: Book[]; initialCopies?: Record<string, number> }) {
   const [query, setQuery] = useState('')
   const [activeBook, setActiveBook] = useState<Book | null>(null)
   const [borrowError, setBorrowError] = useState<string | null>(null)
   const [borrowingTitle, setBorrowingTitle] = useState<string | null>(null)
   const router = useRouter()
-  const { data: session, isPending: sessionPending } = authClient.useSession()
+  const { data: session, isPending: sessionPending } = useJwtSession()
   const { data: borrowedBooks = [], isLoading: borrowListLoading, mutate: mutateBorrowedBooks } = useSWR<BorrowedBook[]>(session?.user ? '/api/borrows' : null, fetchBorrowedBooks)
   const borrowedTitles = useMemo(() => new Set(borrowedBooks.map((borrowedBook) => borrowedBook.title)), [borrowedBooks])
-  const [availableCopies, setAvailableCopies] = useState<Record<string, number>>(() => ({ ...Object.fromEntries(books.map((book) => [book.title, book.copies])), ...initialCopies }))
-  const filteredBooks = useMemo(() => books.slice(0, 12).filter((book) => `${book.title} ${book.author} ${book.category}`.toLowerCase().includes(query.toLowerCase())), [query])
+  const [availableCopies, setAvailableCopies] = useState<Record<string, number>>(() => ({ ...Object.fromEntries(catalogBooks.map((book) => [book.title, book.copies])), ...initialCopies }))
+  const filteredBooks = useMemo(() => catalogBooks.slice(0, 12).filter((book) => `${book.title} ${book.author} ${book.category}`.toLowerCase().includes(query.toLowerCase())), [catalogBooks, query])
 
   const borrowBook = async (book: Book) => {
     if (sessionPending || borrowingTitle === book.title || borrowListLoading) return
@@ -48,7 +48,7 @@ export default function BooknookHome({ initialCopies = {} }: { initialCopies?: R
     setBorrowError(null)
     setBorrowingTitle(book.title)
     try {
-      const response = await fetch('/api/borrows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: book.title }) })
+      const response = await jwtFetch('/api/borrows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: book.title }) })
       const result = await response.json().catch(() => ({})) as BorrowApiResult
 
       if (response.status === 409 && result.code === 'ALREADY_BORROWED') {
@@ -98,6 +98,7 @@ export default function BooknookHome({ initialCopies = {} }: { initialCopies?: R
                 <div>
                   <h3>{book.title}</h3>
                   <p>{book.author}</p>
+                  <p className="book-owner-preview">Added by {book.addedByName} · {book.addedByEmail}</p>
                   <span className={`availability ${copies === 0 ? 'sold-out' : ''}`}>{alreadyBorrowed ? 'Already borrowed' : copies === 0 ? 'All copies borrowed' : `${copies} ${copies === 1 ? 'copy' : 'copies'} available`}</span>
                 </div>
                 <button className="round-arrow" onClick={() => { setBorrowError(null); setActiveBook(book) }} aria-label={`View details for ${book.title}`}><ArrowRight size={17} /></button>
@@ -111,12 +112,12 @@ export default function BooknookHome({ initialCopies = {} }: { initialCopies?: R
 
         <section className="section how-section" id="how-it-works"><div className="section-heading"><div><div className="eyebrow">Simple by design</div><h2>Find. Borrow. Belong.</h2></div><p className="heading-copy">A library should feel like an invitation, not an errand.</p></div><div className="steps"><div className="step"><span className="step-number">01</span><BookOpen size={25} /><h3>Find your next read</h3><p>Browse our hand-picked shelves and follow your curiosity wherever it leads.</p></div><div className="step"><span className="step-number">02</span><Clock3 size={25} /><h3>Keep it for 14 days</h3><p>Borrow with ease and take your time. No pressure, just a little more room to read.</p></div><div className="step"><span className="step-number">03</span><Sparkles size={25} /><h3>Pass it forward</h3><p>Return your book when you’re ready so another reader can discover its magic.</p></div></div></section>
 
-        {session?.user && <section className="shelf-section" id="my-books"><div className="shelf-copy"><div className="eyebrow light">Your reading life</div><h2>There’s always<br /><em>another chapter.</em></h2><p>Keep track of what you’re reading, save books for later, and make your shelf feel like home.</p><a href="#books" className="secondary-button">Explore the collection <ArrowRight size={16} /></a></div><div className="borrowed-stack" aria-label="Borrowed books"><div className="borrowed-heading"><span>Currently borrowed</span><strong>{borrowListLoading ? 'Loading…' : `${borrowedBooks.length} ${borrowedBooks.length === 1 ? 'book' : 'books'}`}</strong></div><div className="shelf-stack">{borrowedBooks.length ? borrowedBooks.slice(0, 4).map((borrowedBook, index) => { const catalogBook = books.find((book) => book.title === borrowedBook.title); return <div className={`shelf-book ${['book-one', 'book-two', 'book-three', 'book-four'][index % 4] ?? 'book-one'}`} key={borrowedBook.id} title={borrowedBook.title} role="img" aria-label={borrowedBook.title}><BookCoverImage src={catalogBook?.image ?? borrowedBook.image} fallbackSrc={catalogBook?.fallbackImage} alt="" /></div> }) : <div className="shelf-empty" role="status">{borrowListLoading ? 'Loading your shelf…' : 'Your next story is waiting.'}</div>}</div><div className="borrowed-meta"><span>{borrowedBooks.length ? 'See due dates in your borrow list' : 'Ready for a new read'}</span><Link href="/borrows">Manage shelf <ArrowRight size={13} /></Link></div></div></section>}
+        {session?.user && <section className="shelf-section" id="my-books"><div className="shelf-copy"><div className="eyebrow light">Your reading life</div><h2>There’s always<br /><em>another chapter.</em></h2><p>Keep track of what you’re reading, save books for later, and make your shelf feel like home.</p><a href="#books" className="secondary-button">Explore the collection <ArrowRight size={16} /></a></div><div className="borrowed-stack" aria-label="Borrowed books"><div className="borrowed-heading"><span>Currently borrowed</span><strong>{borrowListLoading ? 'Loading…' : `${borrowedBooks.length} ${borrowedBooks.length === 1 ? 'book' : 'books'}`}</strong></div><div className="shelf-stack">{borrowedBooks.length ? borrowedBooks.slice(0, 4).map((borrowedBook, index) => { const catalogBook = catalogBooks.find((book) => book.title === borrowedBook.title); return <div className={`shelf-book ${['book-one', 'book-two', 'book-three', 'book-four'][index % 4] ?? 'book-one'}`} key={borrowedBook.id} title={borrowedBook.title} role="img" aria-label={borrowedBook.title}><BookCoverImage src={catalogBook?.image ?? borrowedBook.image} fallbackSrc={catalogBook?.fallbackImage} alt="" /></div> }) : <div className="shelf-empty" role="status">{borrowListLoading ? 'Loading your shelf…' : 'Your next story is waiting.'}</div>}</div><div className="borrowed-meta"><span>{borrowedBooks.length ? 'See due dates in your borrow list' : 'Ready for a new read'}</span><Link href="/borrows">Manage shelf <ArrowRight size={13} /></Link></div></div></section>}
       </main>
 
       <footer className="site-footer"><div className="footer-contact-banner"><div><div className="eyebrow">Contact us</div><h2>Keep the conversation<br /><em>open.</em></h2></div><p>Have a book recommendation, a question, or just want to say hello? We&apos;d love to hear from you.</p></div><div className="footer-top"><div><a className="brand footer-brand" href="#top"><span className="brand-mark"><Library size={18} /></span>Book<span className="brand-accent">Nook</span></a><p className="footer-blurb">A small online library for<br />curious, generous readers.</p></div><div className="footer-column"><span>Explore</span><Link href="/all-books">All books</Link><a href="#how-it-works">How it works</a>{session && <Link href="/borrows">My borrows</Link>}</div><div className="footer-column"><span>Say hello</span><a className="footer-email" href="mailto:abdullahals128@gmail.com">abdullahals128@gmail.com</a><p>Mohakhali, Dhaka</p></div><div className="footer-social"><span>Follow along</span><div className="footer-social-links"><a className="social-link linkedin" href="https://www.linkedin.com/in/abdullah-al-sabbir-" target="_blank" rel="noreferrer" aria-label="LinkedIn"><strong>in</strong><small>LinkedIn</small></a><a className="social-link instagram" href="https://www.instagram.com/al_sabbir23" target="_blank" rel="noreferrer" aria-label="Instagram"><strong>◎</strong><small>Instagram</small></a></div></div></div><div className="footer-bottom"><span>© 2024 BookNook Library</span><span>Made for slow mornings & good stories.</span></div></footer>
 
-      {activeBook && <div className="modal-backdrop" role="presentation" onClick={() => setActiveBook(null)}><div className="book-modal" role="dialog" aria-modal="true" aria-label={`${activeBook.title} details`} onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setActiveBook(null)} aria-label="Close"><X size={20} /></button><BookCoverImage key={activeBook.title} src={activeBook.image} fallbackSrc={activeBook.fallbackImage} alt={`${activeBook.title} cover`} loading="eager" /><div className="modal-copy"><div className="eyebrow">{activeBook.category} · {activeBook.year}</div><h2>{activeBook.title}</h2><p className="modal-author">by {activeBook.author}</p><p>{activeBook.description}</p><div className="modal-availability">{borrowedTitles.has(activeBook.title) ? 'Already borrowed' : (availableCopies[activeBook.title] ?? 0) > 0 ? `${availableCopies[activeBook.title]} ${availableCopies[activeBook.title] === 1 ? 'copy' : 'copies'} available` : 'All copies are currently borrowed'}</div>{borrowError && <p className="borrow-error" role="status">{borrowError}</p>}<button className="primary-button" disabled={sessionPending || (Boolean(session?.user) && borrowListLoading) || borrowingTitle === activeBook.title || borrowedTitles.has(activeBook.title) || (availableCopies[activeBook.title] ?? 0) === 0} onClick={() => borrowBook(activeBook)}>{borrowedTitles.has(activeBook.title) ? 'Already borrowed' : sessionPending ? 'Checking sign-in…' : !session?.user ? 'Sign in to borrow' : borrowingTitle === activeBook.title ? 'Borrowing…' : (availableCopies[activeBook.title] ?? 0) > 0 ? 'Borrow this book' : 'Unavailable'} <ArrowRight size={16} /></button></div></div></div>}
+      {activeBook && <div className="modal-backdrop" role="presentation" onClick={() => setActiveBook(null)}><div className="book-modal" role="dialog" aria-modal="true" aria-label={`${activeBook.title} details`} onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setActiveBook(null)} aria-label="Close"><X size={20} /></button><BookCoverImage key={activeBook.title} src={activeBook.image} fallbackSrc={activeBook.fallbackImage} alt={`${activeBook.title} cover`} loading="eager" /><div className="modal-copy"><div className="eyebrow">{activeBook.category}{activeBook.year ? ` · ${activeBook.year}` : ''}</div><h2>{activeBook.title}</h2><p className="modal-author">by {activeBook.author}</p><p>{activeBook.description}</p><div className="book-added-by"><span>Added by</span><strong>{activeBook.addedByName}</strong><span>{activeBook.addedByEmail}</span>{activeBook.addedAt && <time dateTime={activeBook.addedAt}>Added {new Date(activeBook.addedAt).toLocaleDateString()}</time>}</div><div className="modal-availability">{borrowedTitles.has(activeBook.title) ? 'Already borrowed' : (availableCopies[activeBook.title] ?? 0) > 0 ? `${availableCopies[activeBook.title]} ${availableCopies[activeBook.title] === 1 ? 'copy' : 'copies'} available` : 'All copies are currently borrowed'}</div>{borrowError && <p className="borrow-error" role="status">{borrowError}</p>}<button className="primary-button" disabled={sessionPending || (Boolean(session?.user) && borrowListLoading) || borrowingTitle === activeBook.title || borrowedTitles.has(activeBook.title) || (availableCopies[activeBook.title] ?? 0) === 0} onClick={() => borrowBook(activeBook)}>{borrowedTitles.has(activeBook.title) ? 'Already borrowed' : sessionPending ? 'Checking sign-in…' : !session?.user ? 'Sign in to borrow' : borrowingTitle === activeBook.title ? 'Borrowing…' : (availableCopies[activeBook.title] ?? 0) > 0 ? 'Borrow this book' : 'Unavailable'} <ArrowRight size={16} /></button></div></div></div>}
     </div>
   )
 }

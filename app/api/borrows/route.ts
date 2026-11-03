@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server'
 import { and, eq, gt, sql } from 'drizzle-orm'
-import { headers } from 'next/headers'
-import { auth } from '@/lib/auth'
+import { getJwtPrincipalFromRequest } from '@/lib/jwt-server'
 import { getBookByTitle } from '@/lib/book-catalog'
 import { db } from '@/lib/db'
-import { borrow, bookInventory } from '@/lib/db/schema'
-
-async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  return session?.user.id ?? null
-}
+import { borrow, bookInventory, libraryBooks } from '@/lib/db/schema'
 
 function isUniqueViolation(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
@@ -21,9 +15,10 @@ function duplicateBorrowResponse() {
   return NextResponse.json({ error: 'You already borrowed this book', code: 'ALREADY_BORROWED' }, { status: 409 })
 }
 
-export async function GET() {
-  const userId = await getUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(request: Request) {
+  const principal = await getJwtPrincipalFromRequest(request)
+  if (!principal) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = principal.userId
 
   const records = await db.select({
     id: borrow.id,
@@ -38,12 +33,21 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const userId = await getUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const principal = await getJwtPrincipalFromRequest(request)
+  if (!principal) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = principal.userId
 
   const body = await request.json().catch(() => null) as { title?: unknown } | null
   const title = typeof body?.title === 'string' ? body.title.trim() : ''
-  const book = getBookByTitle(title)
+  const [libraryBook] = await db.select({
+    title: libraryBooks.title,
+    author: libraryBooks.author,
+    image: libraryBooks.image,
+    totalCopies: libraryBooks.totalCopies,
+  }).from(libraryBooks).where(eq(libraryBooks.title, title)).limit(1)
+  const book = libraryBook
+    ? { title: libraryBook.title, author: libraryBook.author, image: libraryBook.image, copies: libraryBook.totalCopies }
+    : getBookByTitle(title)
   if (!book) return NextResponse.json({ error: 'Book not found', code: 'BOOK_NOT_FOUND' }, { status: 404 })
 
   const borrowedAt = new Date()
@@ -98,8 +102,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const userId = await getUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const principal = await getJwtPrincipalFromRequest(request)
+  if (!principal) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = principal.userId
 
   const body = await request.json().catch(() => null) as { id?: unknown } | null
   const id = Number(body?.id)
